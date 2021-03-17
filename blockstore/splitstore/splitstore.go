@@ -484,7 +484,7 @@ func (s *SplitStore) warmup(curTs *types.TipSet) error {
 	count := int64(0)
 	xcount := int64(0)
 	missing := int64(0)
-	err := s.walk(curTs, epoch,
+	err := s.walk(curTs, epoch, false,
 		func(cid cid.Cid) error {
 			count++
 
@@ -596,7 +596,7 @@ func (s *SplitStore) estimateMarkSetSize(curTs *types.TipSet) error {
 	epoch := curTs.Height()
 
 	var count int64
-	err := s.walk(curTs, epoch,
+	err := s.walk(curTs, epoch, false,
 		func(cid cid.Cid) error {
 			count++
 			return nil
@@ -627,28 +627,28 @@ func (s *SplitStore) doCompact(curTs *types.TipSet, syncGapEpoch abi.ChainEpoch)
 	log.Infow("marking reachable blocks", "currentEpoch", currentEpoch, "boundaryEpoch", boundaryEpoch)
 	startMark := time.Now()
 
-	var markTs *types.TipSet
-	if syncGapEpoch > boundaryEpoch {
-		// There is a sync gap that may have caused writes that are logically after the boundary
-		// epoch to be written before the respective head change notification and hence be tracked
-		// at the wrong epoch.
-		// This can happen if the node is offline or falls out of sync for an extended period of time.
-		// In this case we perform a full walk to avoid pathologies with pushing actually hot
-		// objects into the coldstore.
-		markTs = curTs
-		log.Infof("sync gap detected at epoch %d; marking from current epoch to boundary epoch", syncGapEpoch)
-	} else {
-		// There is no pathological sync gap, so we can use the much faster single tipset walk at
-		// the boundary epoch.
-		boundaryTs, err := s.chain.GetTipsetByHeight(context.Background(), boundaryEpoch, curTs, true)
-		if err != nil {
-			return xerrors.Errorf("error getting tipset at boundary epoch: %w", err)
-		}
-		markTs = boundaryTs
-	}
+	// var markTs *types.TipSet
+	// if syncGapEpoch > boundaryEpoch {
+	// 	// There is a sync gap that may have caused writes that are logically after the boundary
+	// 	// epoch to be written before the respective head change notification and hence be tracked
+	// 	// at the wrong epoch.
+	// 	// This can happen if the node is offline or falls out of sync for an extended period of time.
+	// 	// In this case we perform a full walk to avoid pathologies with pushing actually hot
+	// 	// objects into the coldstore.
+	// 	markTs = curTs
+	// 	log.Infof("sync gap detected at epoch %d; marking from current epoch to boundary epoch", syncGapEpoch)
+	// } else {
+	// 	// There is no pathological sync gap, so we can use the much faster single tipset walk at
+	// 	// the boundary epoch.
+	// 	boundaryTs, err := s.chain.GetTipsetByHeight(context.Background(), boundaryEpoch, curTs, true)
+	// 	if err != nil {
+	// 		return xerrors.Errorf("error getting tipset at boundary epoch: %w", err)
+	// 	}
+	// 	markTs = boundaryTs
+	// }
 
 	var count int64
-	err = s.walk(markTs, boundaryEpoch,
+	err = s.walk(curTs, boundaryEpoch, true,
 		func(cid cid.Cid) error {
 			count++
 			return markSet.Mark(cid)
@@ -770,7 +770,7 @@ func (s *SplitStore) doCompact(curTs *types.TipSet, syncGapEpoch abi.ChainEpoch)
 	return nil
 }
 
-func (s *SplitStore) walk(ts *types.TipSet, boundary abi.ChainEpoch, f func(cid.Cid) error) error {
+func (s *SplitStore) walk(ts *types.TipSet, boundary abi.ChainEpoch, inclMsgs bool, f func(cid.Cid) error) error {
 	walked := cid.NewSet()
 	toWalk := ts.Cids()
 
@@ -800,6 +800,12 @@ func (s *SplitStore) walk(ts *types.TipSet, boundary abi.ChainEpoch, f func(cid.
 
 		if err := s.walkLinks(hdr.ParentStateRoot, walked, f); err != nil {
 			return xerrors.Errorf("error walking state root (cid: %s): %w", hdr.ParentStateRoot, err)
+		}
+
+		if inclMsgs {
+			if err := s.walkLinks(hdr.Messages, walked, f); err != nil {
+				return xerrors.Errorf("error walking messages (cid: %s): %w", hdr.Messages, err)
+			}
 		}
 
 		toWalk = append(toWalk, hdr.Parents...)
