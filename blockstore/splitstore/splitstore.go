@@ -85,7 +85,7 @@ const (
 
 	defaultColdPurgeSize = 12_000_000
 
-	aggressiveGCThreshold         = 64 << 30 // 64GiB
+	aggressiveGCThreshold         = 80 << 30 // 80GiB
 	continueAggressiveGCThreshold = 64 << 20 // 64MiB
 )
 
