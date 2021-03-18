@@ -52,10 +52,6 @@ var (
 	// CompactionBoundary is the number of epochs from the current epoch at which
 	// we will walk the chain for live objects.
 	CompactionBoundary = 2 * build.Finality
-
-	// SyncGapTime is the time delay from a tipset's min timestamp before we decide
-	// there is a sync gap
-	SyncGapTime = 5 * time.Minute
 )
 
 var (
@@ -67,11 +63,6 @@ var (
 	// On first start, the splitstore will walk the state tree and will copy
 	// all active blocks into the hotstore.
 	warmupEpochKey = dstore.NewKey("/splitstore/warmupEpoch")
-
-	// syncGapEpochKey stores the last epoch where a sync gap was detected.
-	// If there is a sync gap after the boundary epoch, compaction will perform
-	// a slower full walk from the current epoch to the boundary epoch
-	syncGapEpochKey = dstore.NewKey("/splitstore/syncGapEpoch")
 
 	// markSetSizeKey stores the current estimate for the mark set size.
 	// this is first computed at warmup and updated in every compaction
@@ -114,10 +105,9 @@ type SplitStore struct {
 	critsection int32 // compaction critical section
 	closing     int32 // the split store is closing
 
-	baseEpoch    abi.ChainEpoch
-	syncGapEpoch abi.ChainEpoch
-	warmupEpoch  abi.ChainEpoch
-	warm         bool
+	baseEpoch   abi.ChainEpoch
+	warmupEpoch abi.ChainEpoch
+	warm        bool
 
 	coldPurgeSize int
 
@@ -365,17 +355,6 @@ func (s *SplitStore) Start(chain ChainAccessor) error {
 		return xerrors.Errorf("error loading warmup epoch: %w", err)
 	}
 
-	// load sync gap epoch from metadata ds
-	bs, err = s.ds.Get(syncGapEpochKey)
-	switch err {
-	case nil:
-		s.syncGapEpoch = bytesToEpoch(bs)
-
-	case dstore.ErrNotFound:
-	default:
-		return xerrors.Errorf("error loading sync gap epoch: %w", err)
-	}
-
 	// load markSetSize from metadata ds
 	// if none, the splitstore will compute it during warmup and update in every compaction
 	bs, err = s.ds.Get(markSetSizeKey)
@@ -416,14 +395,6 @@ func (s *SplitStore) HeadChange(_, apply []*types.TipSet) error {
 	s.curTs = curTs
 	s.mx.Unlock()
 
-	timestamp := time.Unix(int64(curTs.MinTimestamp()), 0)
-	if time.Since(timestamp) > SyncGapTime {
-		err := s.setSyncGapEpoch(epoch)
-		if err != nil {
-			log.Warnf("error saving sync gap epoch: %s", err)
-		}
-	}
-
 	if !atomic.CompareAndSwapInt32(&s.compacting, 0, 1) {
 		// we are currently compacting, do nothing and wait for the next head change
 		return nil
@@ -463,7 +434,7 @@ func (s *SplitStore) HeadChange(_, apply []*types.TipSet) error {
 			log.Info("compacting splitstore")
 			start := time.Now()
 
-			s.compact(curTs, s.syncGapEpoch)
+			s.compact(curTs)
 
 			log.Infow("compaction done", "took", time.Since(start))
 		}()
@@ -567,7 +538,7 @@ func (s *SplitStore) warmup(curTs *types.TipSet) error {
 }
 
 // Compaction/GC Algorithm
-func (s *SplitStore) compact(curTs *types.TipSet, syncGapEpoch abi.ChainEpoch) {
+func (s *SplitStore) compact(curTs *types.TipSet) {
 	var err error
 	if s.markSetSize == 0 {
 		start := time.Now()
@@ -583,7 +554,7 @@ func (s *SplitStore) compact(curTs *types.TipSet, syncGapEpoch abi.ChainEpoch) {
 	}
 
 	start := time.Now()
-	err = s.doCompact(curTs, syncGapEpoch)
+	err = s.doCompact(curTs)
 	took := time.Since(start).Milliseconds()
 	stats.Record(context.Background(), metrics.SplitstoreCompactionTimeSeconds.M(float64(took)/1e3))
 
@@ -610,7 +581,7 @@ func (s *SplitStore) estimateMarkSetSize(curTs *types.TipSet) error {
 	return nil
 }
 
-func (s *SplitStore) doCompact(curTs *types.TipSet, syncGapEpoch abi.ChainEpoch) error {
+func (s *SplitStore) doCompact(curTs *types.TipSet) error {
 	coldEpoch := s.baseEpoch + CompactionCold
 	currentEpoch := curTs.Height()
 	boundaryEpoch := currentEpoch - CompactionBoundary
@@ -626,26 +597,6 @@ func (s *SplitStore) doCompact(curTs *types.TipSet, syncGapEpoch abi.ChainEpoch)
 	// 1. mark reachable objects by walking the chain from the current epoch to the boundary epoch
 	log.Infow("marking reachable blocks", "currentEpoch", currentEpoch, "boundaryEpoch", boundaryEpoch)
 	startMark := time.Now()
-
-	// var markTs *types.TipSet
-	// if syncGapEpoch > boundaryEpoch {
-	// 	// There is a sync gap that may have caused writes that are logically after the boundary
-	// 	// epoch to be written before the respective head change notification and hence be tracked
-	// 	// at the wrong epoch.
-	// 	// This can happen if the node is offline or falls out of sync for an extended period of time.
-	// 	// In this case we perform a full walk to avoid pathologies with pushing actually hot
-	// 	// objects into the coldstore.
-	// 	markTs = curTs
-	// 	log.Infof("sync gap detected at epoch %d; marking from current epoch to boundary epoch", syncGapEpoch)
-	// } else {
-	// 	// There is no pathological sync gap, so we can use the much faster single tipset walk at
-	// 	// the boundary epoch.
-	// 	boundaryTs, err := s.chain.GetTipsetByHeight(context.Background(), boundaryEpoch, curTs, true)
-	// 	if err != nil {
-	// 		return xerrors.Errorf("error getting tipset at boundary epoch: %w", err)
-	// 	}
-	// 	markTs = boundaryTs
-	// }
 
 	var count int64
 	err = s.walk(curTs, boundaryEpoch, true,
@@ -1027,11 +978,6 @@ func (s *SplitStore) gcHotstore() {
 func (s *SplitStore) setBaseEpoch(epoch abi.ChainEpoch) error {
 	s.baseEpoch = epoch
 	return s.ds.Put(baseEpochKey, epochToBytes(epoch))
-}
-
-func (s *SplitStore) setSyncGapEpoch(epoch abi.ChainEpoch) error {
-	s.syncGapEpoch = epoch
-	return s.ds.Put(syncGapEpochKey, epochToBytes(epoch))
 }
 
 func epochToBytes(epoch abi.ChainEpoch) []byte {
