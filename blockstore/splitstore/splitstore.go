@@ -15,6 +15,7 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	dstore "github.com/ipfs/go-datastore"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log/v2"
 	cbg "github.com/whyrusleeping/cbor-gen"
 
@@ -22,8 +23,10 @@ import (
 
 	bstore "github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/build"
+	"github.com/filecoin-project/lotus/chain/actors/adt"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/metrics"
+	blockadt "github.com/filecoin-project/specs-actors/actors/util/adt"
 
 	"go.opencensus.io/stats"
 )
@@ -754,7 +757,7 @@ func (s *SplitStore) walk(ts *types.TipSet, boundary abi.ChainEpoch, inclMsgs bo
 		}
 
 		if inclMsgs {
-			if err := s.walkLinks(hdr.Messages, walked, f); err != nil {
+			if err := s.walkMessages(hdr.Messages, walked, f); err != nil {
 				return xerrors.Errorf("error walking messages (cid: %s): %w", hdr.Messages, err)
 			}
 		}
@@ -808,6 +811,50 @@ func (s *SplitStore) walkLinks(c cid.Cid, walked *cid.Set, f func(cid.Cid) error
 	}
 
 	return rerr
+}
+
+func (s *SplitStore) walkMessages(c cid.Cid, walked *cid.Set, f func(cid.Cid) error) error {
+	if !walked.Visit(c) {
+		return nil
+	}
+
+	if err := f(c); err != nil {
+		return err
+	}
+
+	walkAMT := func(c cid.Cid) error {
+		as := adt.WrapStore(context.Background(), cbor.NewCborStore(s))
+		a, err := blockadt.AsArray(as, c)
+		if err != nil {
+			return xerrors.Errorf("error loadding AMT: %w", err)
+		}
+
+		var cc cbg.CborCid
+		return a.ForEach(&cc, func(i int64) error {
+			c := cid.Cid(cc)
+			if !walked.Visit(c) {
+				return nil
+			}
+
+			return f(c)
+		})
+	}
+
+	var mm types.MsgMeta
+	cst := cbor.NewCborStore(s)
+	if err := cst.Get(context.Background(), c, &mm); err != nil {
+		return xerrors.Errorf("error loading msgmeta (cid: %s): %w", c, err)
+	}
+
+	if err := walkAMT(mm.BlsMessages); err != nil {
+		return xerrors.Errorf("error walking bls messages (cid: %s): %w", mm.BlsMessages, err)
+	}
+
+	if err := walkAMT(mm.SecpkMessages); err != nil {
+		return xerrors.Errorf("error walking secpk messages (cid: %s): %w", mm.SecpkMessages, err)
+	}
+
+	return nil
 }
 
 func (s *SplitStore) moveColdBlocks(cold []cid.Cid) error {
