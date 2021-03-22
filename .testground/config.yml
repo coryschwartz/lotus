@@ -1,5 +1,5 @@
 ---
-backend: http://127.0.0.1:8042
+backend: https://ci.testground.ipfs.team
 compositions:
   - PlanDir: testplans/lotus-soup
     CompFile: testplans/lotus-soup/_compositions/baseline-docker-1-1.toml
@@ -7,3 +7,6 @@ compositions:
   - PlanDir: testplans/lotus-soup
     CompFile: testplans/lotus-soup/_compositions/baseline-docker-5-1.toml
     Name: test dos
+  - PlanDir: testplans/lotus-soup
+    CompFile: testplans/lotus-soup/_compositions/drand-halt.toml
+    Name: the third one
