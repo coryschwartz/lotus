@@ -7,7 +7,7 @@ jobs:
     steps:
     - name: testground graphsync
       id: graphsync-stress-k8s
-      uses: coryschwartz/testground-github-action@v0.5.1.5
+      uses: coryschwartz/testground-github-action@v0.5.1.6
       with:
         backend: https://ci.testground.ipfs.team
         plan_directory: testplans/graphsync
