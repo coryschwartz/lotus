@@ -11,7 +11,7 @@ jobs:
       # uses: coryschwartz/testground-github-action@v0.5.1.6
       uses: coryschwartz/testground-github-action@master
       with:
-        backend: "https://ci.testground.ipfs.team"
+        backend: ci.testground.ipfs.team
         plan_directory: testplans/graphsync
         composition_file: testplans/graphsync/_compositions/stress-k8s.toml
     - name: Get status for graphsync-stress-k8s
