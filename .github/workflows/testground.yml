@@ -5,6 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Run testground compositions
     steps:
+    - uses: actions/checkout@v2
     - name: testground graphsync
       id: graphsync-stress-k8s
       # uses: coryschwartz/testground-github-action@v0.5.1.6
