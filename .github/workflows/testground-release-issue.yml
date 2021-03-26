@@ -1,0 +1,20 @@
+---
+
+name: Testground Issue Checker
+
+on:
+  issues:
+    types:
+      - opened
+      - reopened
+
+jobs:
+  release-issue:
+    if: ${{ contains(github.event.issue.labels.*.name, 'RELEASE ISSUE') }}
+    steps:
+      - name: Initial Comment
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Bot Bot Bot Bot Bot
