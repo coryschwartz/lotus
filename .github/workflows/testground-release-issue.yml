@@ -53,7 +53,7 @@ jobs:
           edit-mode: append
           # comment-id: ${{ jobs.initial-comment.steps.initial-comment.outputs.comment-id }}
           body: |
-            status ${{ steps.0.outputs.status }}
-            outcome ${{ steps.0.outputs.outcome }}
+            status ${{ steps.[0].outputs.status }}
+            outcome ${{ steps.[0].outputs.outcome }}
 
 
