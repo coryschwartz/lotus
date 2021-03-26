@@ -2,7 +2,7 @@
 name: Release Issue
 about: Start a new release
 title: "[RELEASE ISSUE]"
-labels: hint/needs-triaging, area/mining
+labels: RELEASE
 assignees: ''
 
 ---
