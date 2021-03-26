@@ -4,9 +4,12 @@ name: Testground PR Checker
 on: [push]
 
 jobs:
-  strategy:
-    matrix:
-      include:
+  testground:
+    runs-on: ubuntu-latest
+    name: Run testground compositions
+    strategy:
+      matrix:
+        include:
           - backend_addr: ci.testground.ipfs.team
             backend_proto: https
             plan_directory: testplans/graphsync
@@ -19,9 +22,6 @@ jobs:
             backend_proto: https
             plan_directory: testplans/lotus-soup
             composition_file: testplans/lotus-soup/_compositions/paych-stress-k8s.toml
-  testground:
-    runs-on: ubuntu-latest
-    name: Run testground compositions
     steps:
       - uses: actions/checkout@v2
       - name: testground graphsync
