@@ -6,7 +6,7 @@ on: [push]
 jobs:
   testground:
     runs-on: ubuntu-latest
-    name: Run testground compositions
+    name: ${{ matrix.composition_file }}
     strategy:
       matrix:
         include:
