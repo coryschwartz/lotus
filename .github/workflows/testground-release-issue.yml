@@ -27,11 +27,11 @@ jobs:
             __finished tests below this line__
 
   testground-run:
+    runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
-        max-parallel: 2
         include:
           - backend_addr: ci.testground.ipfs.team
             backend_proto: https
