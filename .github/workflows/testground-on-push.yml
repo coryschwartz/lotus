@@ -1,6 +1,24 @@
+---
+name: Testground PR Checker
+
 on: [push]
 
 jobs:
+  strategy:
+    matrix:
+      include:
+          - backend_addr: ci.testground.ipfs.team
+            backend_proto: https
+            plan_directory: testplans/graphsync
+            composition_file: testplans/graphsync/_compositions/stress-k8s.toml 
+          - backend_addr: ci.testground.ipfs.team
+            backend_proto: https
+            plan_directory: testplans/lotus-soup
+            composition_file: testplans/lotus-soup/_compositions/baseline-k8s-3-1.toml
+          - backend_addr: ci.testground.ipfs.team
+            backend_proto: https
+            plan_directory: testplans/lotus-soup
+            composition_file: testplans/lotus-soup/_compositions/paych-stress-k8s.toml
   testground:
     runs-on: ubuntu-latest
     name: Run testground compositions
@@ -8,14 +26,9 @@ jobs:
       - uses: actions/checkout@v2
       - name: testground graphsync
         id: graphsync-stress-k8s
-        # uses: coryschwartz/testground-github-action@v0.5.1.6
         uses: coryschwartz/testground-github-action@master
         with:
           backend_addr: ci.testground.ipfs.team
           backend_proto: https
           plan_directory: testplans/graphsync
           composition_file: testplans/graphsync/_compositions/stress-k8s.toml
-      - name: Get status for graphsync-stress-k8s
-        run: echo "The time was ${{ steps.graphsync-stress-k8s.outputs.status }}"
-      - name: Get outcome for graphsync-stress-k8s
-        run: echo "The time was ${{ steps.graphsync-stress-k8s.outputs.outcome }}"
