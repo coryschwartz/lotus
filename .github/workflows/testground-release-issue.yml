@@ -39,8 +39,7 @@ jobs:
             composition_file: testplans/graphsync/_compositions/stress-k8s.toml 
     steps:
       - uses: actions/checkout@v2
-      - id: ${{ matrix.composition_file }}
-        uses: coryschwartz/testground-github-action@master
+      - uses: coryschwartz/testground-github-action@master
         with:
           backend_addr: ${{ matrix.backend_addr }}
           backend_proto: ${{ matrix.backend_proto }}
@@ -52,7 +51,7 @@ jobs:
           comment-author: testground issue checker [bot]
           issue-number: ${{ github.event.issue.number }}
           edit-mode: append
-          comment-id: ${{ jobs.initial-comment.steps.initial-comment.outputs.comment-id }}
+          # comment-id: ${{ jobs.initial-comment.steps.initial-comment.outputs.comment-id }}
           body: |
             \#\# ${{ matrix.composition_file }}:
             ```
