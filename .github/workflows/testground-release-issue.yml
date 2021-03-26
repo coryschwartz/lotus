@@ -53,7 +53,6 @@ jobs:
           edit-mode: append
           # comment-id: ${{ jobs.initial-comment.steps.initial-comment.outputs.comment-id }}
           body: |
-            \#\# ${{ matrix.composition_file }}:
             ```
             status\: ${{ steps.${{ matrix.composition_file }}.outputs.status }}
             outcome\: ${{ steps.${{ matrix.composition_file }}.outputs.outcome }}
