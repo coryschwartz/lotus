@@ -101,6 +101,7 @@ jobs:
           issue-number: ${{ github.event.issue.number }}
           comment-author: 'github-actions[bot]'
           body-includes: finished tests below this line
+          direction: last
       - name: Update Comment
         if: ${{ always() }}
         uses: peter-evans/create-or-update-comment@v1
