@@ -1,0 +1,26 @@
+---
+name: Testground slash-command
+
+on: issue_comment
+
+jobs:
+  check_comments:
+    name: "Check Comments for /testground"
+    runs-on: ubuntu-latest
+    steps:
+      - name: check for command
+        id: command
+        uses: xt0rted/slash-command-action@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          command: testground
+      - name: respond comment
+        id: comment
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Beep boop.
+
+            ${{ steps.command.command-name }}
+            ${{ steps.command.command-arguments}}
