@@ -10,7 +10,7 @@ on:
 
 jobs:
   release-issue:
-    if: ${{ contains(github.event.issue.labels.*.name, 'RELEASE') }}
+    # if: ${{ contains(github.event.issue.labels.*.name, 'RELEASE') }}
     runs-on: ubuntu-latest
     steps:
       - name: Initial Comment
