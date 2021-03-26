@@ -11,6 +11,7 @@ on:
 jobs:
   release-issue:
     if: ${{ contains(github.event.issue.labels.*.name, 'RELEASE ISSUE') }}
+    runs-on: ubuntu-latest
     steps:
       - name: Initial Comment
         uses: peter-evans/create-or-update-comment@v1
