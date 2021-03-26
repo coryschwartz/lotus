@@ -27,9 +27,9 @@ jobs:
             __finished tests below this line__
 
   testground-run:
-    fail-fast: false
     continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         max-parallel: 2
         include:
