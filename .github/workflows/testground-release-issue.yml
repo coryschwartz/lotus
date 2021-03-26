@@ -9,13 +9,54 @@ on:
       - reopened
 
 jobs:
-  release-issue:
+  initial-comment:
     if: contains(github.event.issue.labels.*.name, 'RELEASE')
     runs-on: ubuntu-latest
     steps:
-      - name: Initial Comment
+      - name: initial-comment
         uses: peter-evans/create-or-update-comment@v1
         with:
+          comment-author: testground issue checker [bot]
           issue-number: ${{ github.event.issue.number }}
           body: |
-            Bot Bot Bot Bot Bot
+            hey there!
+
+            To prepare for this release, I'm kicking off a few testground jobs.
+            Once they finish, I'll post an update here once they have finished.
+
+            __finished tests below this line__
+  testground-run:
+    fail-fast: false
+    continue-on-error: true
+    strategy:
+      matrix:
+        max-parallel: 2
+        include:
+          - backend_addr: ci.testground.ipfs.team
+            backend_proto: https
+            plan_directory: testplans/graphsync
+            composition_file: testplans/graphsync/_compositions/stress-k8s.toml 
+    steps:
+      - uses: actions/checkout@v2
+      - id: ${{ matrix.composition_file }}
+        uses: coryschwartz/testground-github-action@master
+        with:
+          backend_addr: ${{ matrix.backend_addr }}
+          backend_proto: ${{ matrix.backend_proto }}
+          plan_directory: ${{ matrix.plan_directory }}
+          composition_file: ${{ matrix.composition_file }}
+      - name: update-comment
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          comment-author: testground issue checker [bot]
+          issue-number: ${{ github.event.issue.number }}
+          edit-mode: append
+          comment-id: ${{ jobs.initial-comment.steps.initial-comment.outputs.comment-id }}
+          body: |
+            \#\# ${{ matrix.composition_file }}:
+            ```
+            status\: ${{ steps.${{ matrix.composition_file }}.outputs.status }}
+            outcome\: ${{ steps.${{ matrix.composition_file }}.outputs.outcome }}
+            ```
+
+
