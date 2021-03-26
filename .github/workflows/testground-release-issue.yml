@@ -54,8 +54,8 @@ jobs:
           # comment-id: ${{ jobs.initial-comment.steps.initial-comment.outputs.comment-id }}
           body: |
             ```
-            status\: ${{ steps.${{ matrix.composition_file }}.outputs.status }}
-            outcome\: ${{ steps.${{ matrix.composition_file }}.outputs.outcome }}
+            status\: ${{ steps.0.outputs.status }}
+            outcome\: ${{ steps.0.outputs.outcome }}
             ```
 
 
