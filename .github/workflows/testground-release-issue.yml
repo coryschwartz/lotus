@@ -110,6 +110,6 @@ jobs:
           edit-mode: append
           comment-id: ${{ steps.fc.outputs.comment-id }}
           body: |
-            ${{ matrix.composition_file }} | ${{ steps.tg.outputs.testground_id }} | ${{ steps.tg.outputs.status }} | outcome ${{ steps.tg.outputs.outcome }}
+            ${{ matrix.composition_file }} | ${{ steps.tg.outputs.testground_id }} | ${{ steps.tg.outputs.status }} | ${{ steps.tg.outputs.outcome }}
 
 
